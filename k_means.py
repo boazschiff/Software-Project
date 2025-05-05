@@ -90,13 +90,19 @@ def kmeans(points, K, max_iter=100, eps=1e-3):
 
     return centroids
 
+def euclidean(p1, p2):
+    return sum((a - b) ** 2 for a, b in zip(p1, p2)) ** 0.5
+
 
 
 
 def main():
     points = read_points()
     K, max_iter = parse_cmdline(sys.argv, len(points))
+    centroids = kmeans(points, K, max_iter)
 
+if __name__ == "__main__":
+    main()
     
 
 
