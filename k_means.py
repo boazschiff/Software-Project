@@ -100,7 +100,8 @@ def main():
     points = read_points()
     K, max_iter = parse_cmdline(sys.argv, len(points))
     centroids = kmeans(points, K, max_iter)
-
+    for c in centroids:
+        print("," .join(f"{x:.4f}" for x in c))
 if __name__ == "__main__":
     main()
     
