@@ -1,7 +1,6 @@
 #include <stdio.h>
-#define MAX_LINE_LEN 1024
 int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr);
-
+#define MAX_LINE_LEN 1024
 int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr)
 {
     char line[MAX_LINE_LEN];
