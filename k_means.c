@@ -1,9 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+
+#define MAX_LINE_LEN 1024
+
 void parse_cmdline(int argc, char *argv[], int n_points, int *K, int *max_iter);
 int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr);
-#define MAX_LINE_LEN 1024
+double euclidean(const double *p1, const double *p2, int dim);
+double **kmeans(double **points, int n_points, int dim, int K, int max_iter, double eps);
+
 
 int main(int argc, char *argv[])
 {
@@ -19,7 +24,7 @@ int main(int argc, char *argv[])
     int K = 0;
     int max_iter = 0;
 
-    int n_points = sizeof(points) / sizeof(points[0]);
+    n_points = sizeof(points) / sizeof(points[0]);
 
     // Parse command-line arguments
     parse_cmdline(argc, argv, n_points, &K, &max_iter);
@@ -154,4 +159,117 @@ void parse_cmdline(int argc, char *argv[], int n_points, int *K, int *max_iter)
     {
         *max_iter = 400; // default value
     }
+}
+
+double euclidean(const double *p1, const double *p2, int dim) {
+    double sum = 0.0;
+    for (int i = 0; i < dim; i++) {
+        double diff = p1[i] - p2[i];
+        sum += diff * diff;
+    }
+    return sqrt(sum);
+}
+
+// Main K-means function
+double **kmeans(double **points, int n_points, int dim, int K, int max_iter, double eps) {
+    // Allocate memory
+    double **centroids = malloc(K * sizeof(double *));
+    double **new_centroids = malloc(K * sizeof(double *));
+    int *cluster_sizes = calloc(K, sizeof(int));
+    int *assignments = malloc(n_points * sizeof(int));
+
+    // Check memory allocations
+    if (!centroids || !new_centroids || !cluster_sizes || !assignments) {
+        fprintf(stderr, "Memory allocation failed.\n");
+        exit(1);
+    }
+
+    // Initialize centroids with the first K points
+    for (int i = 0; i < K; i++) {
+        centroids[i] = malloc(dim * sizeof(double));
+        new_centroids[i] = calloc(dim, sizeof(double));
+        if (!centroids[i] || !new_centroids[i]) {
+            fprintf(stderr, "Memory allocation failed.\n");
+            exit(1);
+        }
+        for (int j = 0; j < dim; j++) {
+            centroids[i][j] = points[i][j];
+        }
+    }
+
+    // Iterate
+    for (int iter = 0; iter < max_iter; iter++) {
+        // Reset new centroids and cluster sizes
+        for (int i = 0; i < K; i++) {
+            cluster_sizes[i] = 0;
+            for (int j = 0; j < dim; j++) {
+                new_centroids[i][j] = 0.0;
+            }
+        }
+
+        // Assign each point to the nearest centroid
+        for (int i = 0; i < n_points; i++) {
+            double min_dist = euclidean(points[i], centroids[0], dim);
+            int best_k = 0;
+
+            for (int k = 1; k < K; k++) {
+                double dist = euclidean(points[i], centroids[k], dim);
+                if (dist < min_dist) {
+                    min_dist = dist;
+                    best_k = k;
+                }
+            }
+
+            assignments[i] = best_k;
+            cluster_sizes[best_k]++;
+
+            for (int j = 0; j < dim; j++) {
+                new_centroids[best_k][j] += points[i][j];
+            }
+        }
+
+        // Update centroids by averaging the points in each cluster
+        for (int k = 0; k < K; k++) {
+            if (cluster_sizes[k] > 0) {
+                for (int j = 0; j < dim; j++) {
+                    new_centroids[k][j] /= cluster_sizes[k];
+                }
+            } else {
+                // Keep old centroid if cluster is empty
+                for (int j = 0; j < dim; j++) {
+                    new_centroids[k][j] = centroids[k][j];
+                }
+            }
+        }
+
+        // Check for convergence
+        double max_shift = 0.0;
+        for (int k = 0; k < K; k++) {
+            double shift = euclidean(centroids[k], new_centroids[k], dim);
+            if (shift > max_shift) {
+                max_shift = shift;
+            }
+        }
+
+        if (max_shift < eps) {
+            break;
+        }
+
+        // Copy new_centroids → centroids for next iteration
+        for (int k = 0; k < K; k++) {
+            for (int j = 0; j < dim; j++) {
+                centroids[k][j] = new_centroids[k][j];
+            }
+        }
+    }
+
+    // Free temp buffers
+    for (int i = 0; i < K; i++) {
+        free(new_centroids[i]);
+    }
+    free(new_centroids);
+    free(assignments);
+    free(cluster_sizes);
+
+    return centroids;  // caller must free
 }
