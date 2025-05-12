@@ -203,10 +203,9 @@ double **kmeans(double **points, int n_points, int dim, int K, int max_iter, dou
     double **centroids = malloc(K * sizeof(double *));
     double **new_centroids = malloc(K * sizeof(double *));
     int *cluster_sizes = calloc(K, sizeof(int));
-    int *assignments = malloc(n_points * sizeof(int));
 
     // Check memory allocations
-    if (!centroids || !new_centroids || !cluster_sizes || !assignments)
+    if (!centroids || !new_centroids || !cluster_sizes)
     {
         fprintf(stderr, "Memory allocation failed.\n");
         exit(1);
@@ -257,7 +256,6 @@ double **kmeans(double **points, int n_points, int dim, int K, int max_iter, dou
                 }
             }
 
-            assignments[i] = best_k;
             cluster_sizes[best_k]++;
 
             for (int j = 0; j < dim; j++)
@@ -318,7 +316,6 @@ double **kmeans(double **points, int n_points, int dim, int K, int max_iter, dou
         free(new_centroids[i]);
     }
     free(new_centroids);
-    free(assignments);
     free(cluster_sizes);
 
     return centroids; // caller must free
