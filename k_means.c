@@ -1,7 +1,9 @@
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+
 
 #define MAX_LINE_LEN 1024
 
@@ -9,6 +11,7 @@ void parse_cmdline(int argc, char *argv[], int n_points, int *K, int *max_iter);
 int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr);
 double euclidean(const double *p1, const double *p2, int dim);
 double **kmeans(double **points, int n_points, int dim, int K, int max_iter, double eps);
+int safe_parse_int(const char *str, int *out);
 
 int main(int argc, char *argv[]) {
     double **points = NULL;
@@ -56,28 +59,54 @@ int main(int argc, char *argv[]) {
     return 0;
 }
 
+#include <errno.h>
+
+int safe_parse_int(const char *str, int *out) {
+    char *endptr;
+    double val;
+
+    errno = 0;
+    val = strtod(str, &endptr);
+
+    if (errno != 0 || *endptr != '\0') {
+        return 0;  // invalid characters or leftover input
+    }
+
+    if (floor(val) != val) {
+        return 0;  // not an integer (e.g., 2.5)
+    }
+
+    if (val <= 1.0 || val >= 0x10000) {
+        return 0;  // out of valid range: must be > 1 and < 65536
+    }
+
+    *out = (int)val;
+    return 1;
+}
+
+
+
 void parse_cmdline(int argc, char *argv[], int n_points, int *K, int *max_iter) {
     if (argc != 2 && argc != 3) {
-        fprintf(stderr, "Usage: ./kmeans K [max_iter]\n");
+        printf("Usage: ./kmeans K [max_iter]\n");
         exit(1);
     }
 
-    *K = atoi(argv[1]);
-    if (*K <= 1 || *K >= n_points) {
-        fprintf(stderr, "Incorrect number of clusters!\n");
+    if (!safe_parse_int(argv[1], K) || *K <= 1 || *K >= n_points) {
+        printf("Incorrect number of clusters!\n");
         exit(1);
     }
 
     if (argc == 3) {
-        *max_iter = atoi(argv[2]);
-        if (*max_iter <= 1 || *max_iter >= 1000) {
-            fprintf(stderr, "Incorrect maximum iteration!\n");
+        if (!safe_parse_int(argv[2], max_iter) || *max_iter <= 1 || *max_iter >= 1000) {
+            printf("Incorrect maximum iteration!\n");
             exit(1);
         }
     } else {
         *max_iter = 400;
     }
 }
+
 
 double euclidean(const double *p1, const double *p2, int dim) {
     int i;
