@@ -208,89 +208,77 @@ double **kmeans(double **points, int n_points, int dim, int K, int max_iter, dou
     return centroids;
 }
 
-int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr) {
-    char line[MAX_LINE_LEN];
-    int n_points = 0;
-    int capacity = 10;
-    int dim = 0;
-    double **points = (double **)malloc(capacity * sizeof(double *));
+/* ---------- only read_points changed, rest of the file stays the same ---------- */
+int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr)
+{
+    char   line[MAX_LINE_LEN];
+    int    n_points = 0, capacity = 10, dim = 0;
+    double **points = malloc(capacity * sizeof(double *));
+    if (!points) { perror("malloc"); return 1; }
 
-    if (points == NULL) {
-        fprintf(stderr, "Memory allocation failed.\n");
-        return 1;
-    }
+    while (fgets(line, MAX_LINE_LEN, stdin)) {
+        char *line_copy = NULL, *token, *tmp;
+        int   i = 0, current_dim = 0;
 
-    while (fgets(line, MAX_LINE_LEN, stdin) != NULL) {
-        int i = 0;
-        int current_dim = 0;
-        char *token;
-        char *line_copy;
-        char *tmp;
-
+        /* strip \n / \r */
         line[strcspn(line, "\r\n")] = '\0';
-        line_copy = (char *)malloc(strlen(line) + 1);
-        if (line_copy == NULL) {
-            fprintf(stderr, "Memory allocation failed.\n");
-            return 1;
-        }
+
+        /* duplicate line for parsing */
+        line_copy = malloc(strlen(line) + 1);
+        if (!line_copy) { perror("malloc"); goto fail; }
         strcpy(line_copy, line);
 
+        /* count commas to get the dimension */
         token = strtok(line, ",");
-        while (token != NULL) {
-            current_dim++;
-            token = strtok(NULL, ",");
-        }
+        while (token) { current_dim++; token = strtok(NULL, ","); }
 
-        if (n_points == 0) {
+        if (n_points == 0)
             dim = current_dim;
-        } else if (dim != current_dim) {
+        else if (dim != current_dim) {
             fprintf(stderr, "Inconsistent dimensions at line %d.\n", n_points + 1);
             free(line_copy);
-            return 1;
+            goto fail;
         }
 
-        points[n_points] = (double *)malloc(dim * sizeof(double));
-        if (points[n_points] == NULL) {
-            fprintf(stderr, "Memory allocation failed.\n");
-            free(line_copy);
-            return 1;
-        }
+        /* allocate row for current point */
+        points[n_points] = malloc(dim * sizeof(double));
+        if (!points[n_points]) { perror("malloc"); free(line_copy); goto fail; }
 
+        /* convert coordinates */
         token = strtok(line_copy, ",");
-        for (i = 0; i < dim && token != NULL; i++) {
+        for (i = 0; i < dim && token; ++i) {
             points[n_points][i] = strtod(token, &tmp);
             token = strtok(NULL, ",");
         }
-
         if (i != dim) {
-            fprintf(stderr, "Line %d: expected %d values but got %d.\n", n_points + 1, dim, i);
+            fprintf(stderr, "Line %d: expected %d values, got %d.\n",
+                    n_points + 1, dim, i);
+            free(points[n_points]);
             free(line_copy);
-            return 1;
+            goto fail;
         }
 
         free(line_copy);
         n_points++;
 
-        if (n_points >= capacity) {
-            double **new_points;
+        /* grow outer array if needed */
+        if (n_points == capacity) {
             capacity *= 2;
-            new_points = (double **)realloc(points, capacity * sizeof(double *));
-            if (new_points == NULL) {
-                fprintf(stderr, "Reallocation failed.\n");
-                return 1;
-            }
-            points = new_points;
+            double **tmp_points = realloc(points, capacity * sizeof(double *));
+            if (!tmp_points) { perror("realloc"); goto fail; }
+            points = tmp_points;
         }
     }
 
-    if (n_points == 0) {
-        fprintf(stderr, "No input provided.\n");
-        return 1;
-    }
+    if (n_points == 0) { fprintf(stderr, "No input provided.\n"); goto fail; }
 
-    *points_ptr = points;
+    *points_ptr  = points;
     *n_points_ptr = n_points;
-    *dim_ptr = dim;
-
+    *dim_ptr      = dim;
     return 0;
+
+fail:                       /* ← unified cleanup path */
+    for (int j = 0; j < n_points; ++j) free(points[j]);
+    free(points);
+    return 1;
 }
