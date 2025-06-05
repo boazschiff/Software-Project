@@ -62,8 +62,8 @@ def kmeans(points, K, max_iter=100, eps=1e-3):
 
     returns    : list of K centroids (each a vector with same dimension)
     """
-    dim = len(points[0])                      # data dimension  (d)
-    centroids = [p[:] for p in points[:K]]    # first K points → initial µ_k
+    dim = len(points[0])                      
+    centroids = [p[:] for p in points[:K]]    
 
     for _ in range(max_iter):
         # Assignment step
@@ -78,7 +78,6 @@ def kmeans(points, K, max_iter=100, eps=1e-3):
                     best_k    = k
             clusters[best_k].append(p)
 
-        # Update step
         new_centroids = []
         for k in range(K):
             cluster = clusters[k]
@@ -92,7 +91,6 @@ def kmeans(points, K, max_iter=100, eps=1e-3):
             else:
                 new_centroids.append(centroids[k])
 
-        # Convergence check
         largest_shift = max(
             euclidean(old, new) for old, new in zip(centroids, new_centroids)
         )

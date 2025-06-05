@@ -22,18 +22,14 @@ int main(int argc, char *argv[]) {
     int max_iter = 0;
     int i, j;
 
-    /* Read points from stdin */
     if (read_points(&points, &n_points, &dim) != 0) {
         return 1;
     }
 
-    /* Parse command-line arguments */
     parse_cmdline(argc, argv, n_points, &K, &max_iter);
 
-    /* Run k-means */
     centroids = kmeans(points, n_points, dim, K, max_iter, 1e-3);
 
-    /* Print centroids */
     for (i = 0; i < K; i++) {
         for (j = 0; j < dim; j++) {
             printf("%.4f", centroids[i][j]);
@@ -44,13 +40,11 @@ int main(int argc, char *argv[]) {
         printf("\n");
     }
 
-    /* Free centroids */
     for (i = 0; i < K; i++) {
         free(centroids[i]);
     }
     free(centroids);
 
-    /* Free points */
     for (i = 0; i < n_points; i++) {
         free(points[i]);
     }
@@ -69,15 +63,15 @@ int safe_parse_int(const char *str, int *out) {
     val = strtod(str, &endptr);
 
     if (errno != 0 || *endptr != '\0') {
-        return 0;  // invalid characters or leftover input
+        return 0; 
     }
 
     if (floor(val) != val) {
-        return 0;  // not an integer (e.g., 2.5)
+        return 0;  
     }
 
     if (val <= 1.0 || val >= 0x10000) {
-        return 0;  // out of valid range: must be > 1 and < 65536
+        return 0;  
     }
 
     *out = (int)val;
@@ -208,7 +202,6 @@ double **kmeans(double **points, int n_points, int dim, int K, int max_iter, dou
     return centroids;
 }
 
-/* ---------- only read_points changed, rest of the file stays the same ---------- */
 int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr)
 {
     char   line[MAX_LINE_LEN];
@@ -220,15 +213,12 @@ int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr)
         char *line_copy = NULL, *token, *tmp;
         int   i = 0, current_dim = 0;
 
-        /* strip \n / \r */
         line[strcspn(line, "\r\n")] = '\0';
 
-        /* duplicate line for parsing */
         line_copy = malloc(strlen(line) + 1);
         if (!line_copy) { perror("malloc"); goto fail; }
         strcpy(line_copy, line);
 
-        /* count commas to get the dimension */
         token = strtok(line, ",");
         while (token) { current_dim++; token = strtok(NULL, ","); }
 
@@ -240,11 +230,9 @@ int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr)
             goto fail;
         }
 
-        /* allocate row for current point */
         points[n_points] = malloc(dim * sizeof(double));
         if (!points[n_points]) { perror("malloc"); free(line_copy); goto fail; }
 
-        /* convert coordinates */
         token = strtok(line_copy, ",");
         for (i = 0; i < dim && token; ++i) {
             points[n_points][i] = strtod(token, &tmp);
@@ -261,7 +249,6 @@ int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr)
         free(line_copy);
         n_points++;
 
-        /* grow outer array if needed */
         if (n_points == capacity) {
             capacity *= 2;
             double **tmp_points = realloc(points, capacity * sizeof(double *));
@@ -277,7 +264,7 @@ int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr)
     *dim_ptr      = dim;
     return 0;
 
-fail:                       /* ← unified cleanup path */
+fail:                      
     for (int j = 0; j < n_points; ++j) free(points[j]);
     free(points);
     return 1;
