@@ -24,7 +24,7 @@ from typing import Tuple
 ERR_INVALID_K    = "Invalid number of clusters!"
 ERR_INVALID_ITER = "Invalid maximum iteration!"
 ERR_INVALID_EPS  = "Invalid epsilon!"
-ERR_GENERAL      = "An Error Has Occurred"
+ERR_GENERAL      = "An Error Has Occurred Py"
 
 # ---------- helpers ---------------------------------------------------------
 
@@ -46,6 +46,7 @@ def parse_cli(argv: list[str]) -> Tuple[int, int, float, str, str]:
             eps      = float(argv[2])
             file1, file2 = argv[3], argv[4]
     except ValueError:
+        print("hoemo")
         print(ERR_GENERAL)
         sys.exit(1)
 
@@ -59,14 +60,25 @@ def parse_cli(argv: list[str]) -> Tuple[int, int, float, str, str]:
     return K, max_iter, eps, file1, file2
 
 
-def read_points(path: str) -> list[list[float]]:
+def read_points(path: str) -> List[List[float]]:
     """Read a txt/csv file whose first column is the key, rest = vector coords."""
     points = []
-    with open(path, 'r') as f:
-        reader = csv.reader(f)
-        for row in reader:
-            if row and any(cell.strip() for cell in row):   # skip empty line
-                points.append([float(cell) for cell in row])
+    try:
+        with open(path, 'r') as f:
+            reader = csv.reader(f)
+            for row in reader:
+                if row and any(cell.strip() for cell in row):  # skip empty line
+                    points.append([float(cell) for cell in row])
+    except FileNotFoundError:
+        print(f"Error: File not found → {path}")
+        exit(1)
+    except ValueError:
+        print(f"Error: Failed to convert a value to float in file → {path}")
+        exit(1)
+    except Exception as e:
+        print(f"Error: {e}")
+        exit(1)
+
     return points
 
 
@@ -108,9 +120,11 @@ def kmeans_pp_init(points: np.ndarray, K: int) -> list[int]:
 
 def main() -> None:
     try:
+
         K, max_iter, eps, file1, file2 = parse_cli(sys.argv)
         raw1, raw2 = read_points(file1), read_points(file2)
         N = len(raw1)
+
         if not (K < N == len(raw2)):
             print(ERR_INVALID_K); sys.exit(1)
 
@@ -121,13 +135,14 @@ def main() -> None:
 
         # ---- call C extension (6 parameters) ----
         import mykmeanspp
+
         final_centroids = mykmeanspp.fit(
-            data.tolist(),         # datapoints
-            init_centroids,        # initial centroids
-            K,
-            max_iter,
-            eps,
-            dim                    # number of features (sent to C)
+        data.tolist(),        # points: list[list[float]]
+        init_centroids,       # centroids: list[list[float]]
+        K,                    # int
+        max_iter,             # int
+        dim,        # dim: int
+        eps                   # float
         )
 
         # ---- output ----

@@ -1,13 +1,4 @@
-from setuptools import setup, Extension
+from setuptools import Extension, setup
 
-module = Extension(
-    name='mykmeanspp',                   # This is the import name in Python
-    sources=['kmeansmodule.c'],          # Your C source file
-)
-
-setup(
-    name='mykmeanspp',
-    version='1.0',
-    description='K-means++ C extension for clustering',
-    ext_modules=[module],
-)
+module = Extension("mykmeanspp", sources=['kmeansmodule.c'])
+setup(name="mykmeanspp",version='1.0',description="Python wrapper for C fit implementation", ext_modules=[module])
