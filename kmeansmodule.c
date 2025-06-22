@@ -90,31 +90,64 @@ static PyObject* fit(PyObject *self, PyObject *args) {
     int n_points, K, dim, max_iter;
     double eps;
 
-    if (!PyArg_ParseTuple(args, "OOiiid", &py_points, &py_centroids, &K, &max_iter, &dim, &eps))
+    // Removed dim from args
+    if (!PyArg_ParseTuple(args, "OOiiid", &py_points, &py_centroids, &K, &max_iter, &dim, &eps)) {
         return NULL;
+    }
 
+    if (!PyList_Check(py_points) || PyList_Size(py_points) == 0) {
+        PyErr_SetString(PyExc_ValueError, "points must be a non-empty list of lists");
+        return NULL;
+    }
+
+    // Determine number of points and dimensions
     n_points = PyList_Size(py_points);
+    PyObject *first_row = PyList_GetItem(py_points, 0);
+    if (!PyList_Check(first_row)) {
+        PyErr_SetString(PyExc_ValueError, "each point must be a list");
+        return NULL;
+    }
+
+    dim = PyList_Size(first_row);
+
+    // Allocate memory for points and centroids
     double **points = malloc(n_points * sizeof(double *));
     double **centroids = malloc(K * sizeof(double *));
+    if (!points || !centroids) {
+        PyErr_SetString(PyExc_MemoryError, "Memory allocation failed");
+        return NULL;
+    }
 
+    // Convert py_points to C array
     for (int i = 0; i < n_points; i++) {
         PyObject *row = PyList_GetItem(py_points, i);
+        if (!PyList_Check(row) || PyList_Size(row) != dim) {
+            PyErr_SetString(PyExc_ValueError, "All points must have the same dimension");
+            return NULL;
+        }
         points[i] = malloc(dim * sizeof(double));
         for (int j = 0; j < dim; j++) {
             points[i][j] = PyFloat_AsDouble(PyList_GetItem(row, j));
         }
     }
 
+    // Convert py_centroids to C array
     for (int i = 0; i < K; i++) {
         PyObject *row = PyList_GetItem(py_centroids, i);
+        if (!PyList_Check(row) || PyList_Size(row) != dim) {
+            PyErr_SetString(PyExc_ValueError, "All centroids must have the same dimension");
+            return NULL;
+        }
         centroids[i] = malloc(dim * sizeof(double));
         for (int j = 0; j < dim; j++) {
             centroids[i][j] = PyFloat_AsDouble(PyList_GetItem(row, j));
         }
     }
 
+    // Run k-means algorithm
     kmeans(points, centroids, n_points, K, dim, max_iter, eps);
 
+    // Build return Python object
     PyObject *result = PyList_New(K);
     for (int i = 0; i < K; i++) {
         PyObject *row = PyList_New(dim);
@@ -124,6 +157,7 @@ static PyObject* fit(PyObject *self, PyObject *args) {
         PyList_SetItem(result, i, row);
     }
 
+    // Free memory
     for (int i = 0; i < n_points; i++) free(points[i]);
     for (int i = 0; i < K; i++) free(centroids[i]);
     free(points);

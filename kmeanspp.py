@@ -26,24 +26,50 @@ class Point:
         return self.minDist
 
 
-def parse_cli(argv: list[str]) -> Tuple[int, int, float, str, str]:
+def parse_cli(argv: list[str]) -> tuple[int, int, float, str, str]:
+    """
+    Parse the CLI, printing the *specific* message required for each error case.
+
+    Usage:
+      python kmeanspp.py  k  [max_iter]  eps  file1  file2
+    Where:
+      • k          – positive integer  > 1          → “Invalid number of clusters!”
+      • max_iter   – integer 2-…-999   (optional)   → “Invalid maximum iteration!”
+      • eps        – non-negative float             → “Invalid epsilon!”
+    Any other problem that reaches this function is treated as “An Error Has Occurred”.
+    """
     argc = len(argv)
     if argc not in (5, 6):
         print(ERR_GENERAL); sys.exit(1)
 
-    try:
-        K = int(argv[1])
-        if argc == 6:
-            max_iter = int(argv[2])
-            eps = float(argv[3])
-            file1, file2 = argv[4], argv[5]
-        else:
-            max_iter = 300
-            eps = float(argv[2])
-            file1, file2 = argv[3], argv[4]
-    except ValueError:
-        print(ERR_GENERAL); sys.exit(1)
+    # --- helpers ------------------------------------------------------------
+    def int_like(value: str, msg: str) -> int:
+        try:
+            num = float(value)
+        except ValueError:
+            print(msg); sys.exit(1)
+        if not num.is_integer():
+            print(msg); sys.exit(1)
+        return int(num)
 
+    # --- k ------------------------------------------------------------------
+    K = int_like(argv[1], ERR_INVALID_K)
+
+    # --- max_iter / eps / files --------------------------------------------
+    if argc == 6:
+        max_iter = int_like(argv[2], ERR_INVALID_ITER)
+        eps_str, file1, file2 = argv[3], argv[4], argv[5]
+    else:
+        max_iter = 300
+        eps_str, file1, file2 = argv[2], argv[3], argv[4]
+
+    # --- eps ----------------------------------------------------------------
+    try:
+        eps = float(eps_str)
+    except ValueError:
+        print(ERR_INVALID_EPS); sys.exit(1)
+
+    # --- semantic range checks ---------------------------------------------
     if K <= 1:
         print(ERR_INVALID_K); sys.exit(1)
     if not (1 < max_iter < 1000):
@@ -52,6 +78,7 @@ def parse_cli(argv: list[str]) -> Tuple[int, int, float, str, str]:
         print(ERR_INVALID_EPS); sys.exit(1)
 
     return K, max_iter, eps, file1, file2
+
 
 
 def read_points(file1: str, file2: str) -> list[Point]:
