@@ -6,8 +6,8 @@
 // ------------------ Helper Functions ------------------
 
 double euclidean(const double *p1, const double *p2, int dim) {
-    double sum = 0.0;
     int i;
+    double sum = 0.0;
     for (i = 0; i < dim; i++) {
         double diff = p1[i] - p2[i];
         sum += diff * diff;
@@ -17,13 +17,23 @@ double euclidean(const double *p1, const double *p2, int dim) {
 
 void kmeans(double **points, double **centroids, int n_points, int K, int dim, int max_iter, double eps) {
     int i, j, k, iter;
-    double max_shift, shift;
+    double max_shift;
+    double shift;
 
     double **new_centroids = malloc(K * sizeof(double *));
     int *cluster_sizes = calloc(K, sizeof(int));
 
+    if (!new_centroids || !cluster_sizes) {
+        printf("An Error Has Occurred\n");
+        return;
+    }
+
     for (i = 0; i < K; i++) {
         new_centroids[i] = calloc(dim, sizeof(double));
+        if (!new_centroids[i]) {
+            printf("An Error Has Occurred\n");
+            return;
+        }
     }
 
     for (iter = 0; iter < max_iter; iter++) {
@@ -55,6 +65,10 @@ void kmeans(double **points, double **centroids, int n_points, int K, int dim, i
                 for (j = 0; j < dim; j++) {
                     new_centroids[k][j] /= cluster_sizes[k];
                 }
+            } else {
+                for (j = 0; j < dim; j++) {
+                    new_centroids[k][j] = centroids[k][j];
+                }
             }
         }
 
@@ -83,6 +97,8 @@ void kmeans(double **points, double **centroids, int n_points, int K, int dim, i
     free(new_centroids);
     free(cluster_sizes);
 }
+
+
 
 // ------------------ Python Binding ------------------
 

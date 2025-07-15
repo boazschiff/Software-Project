@@ -54,8 +54,9 @@ int main(int argc, char *argv[]) {
 }
 
 void free_points(double **points, int n_points) {
+    int i;
     if (points == NULL) return;
-    for (int i = 0; i < n_points; i++) {
+    for (i = 0; i < n_points; i++) {
         free(points[i]);
     }
     free(points);
@@ -206,9 +207,10 @@ double **kmeans(double **points, int n_points, int dim, int K, int max_iter, dou
 }
 
 int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr) {
-    char   line[MAX_LINE_LEN];
-    int    n_points = 0, capacity = 10, dim = 0;
+    char line[MAX_LINE_LEN];
+    int n_points = 0, capacity = 10, dim = 0;
     double **points = malloc(capacity * sizeof(double *));
+
     if (!points) {
         printf("An Error Has Occurred\n");
         return 1;
@@ -216,7 +218,7 @@ int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr) {
 
     while (fgets(line, MAX_LINE_LEN, stdin)) {
         char *line_copy = NULL, *token, *tmp;
-        int   i = 0, current_dim = 0;
+        int i = 0, current_dim = 0;
 
         line[strcspn(line, "\r\n")] = '\0';
 
@@ -268,8 +270,9 @@ int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr) {
         n_points++;
 
         if (n_points == capacity) {
+            double **tmp_points;
             capacity *= 2;
-            double **tmp_points = realloc(points, capacity * sizeof(double *));
+            tmp_points = realloc(points, capacity * sizeof(double *));
             if (!tmp_points) {
                 printf("An Error Has Occurred\n");
                 free_points(points, n_points);
@@ -288,5 +291,5 @@ int read_points(double ***points_ptr, int *n_points_ptr, int *dim_ptr) {
     *points_ptr = points;
     *n_points_ptr = n_points;
     *dim_ptr = dim;
-    return 0;
+return 0;
 }

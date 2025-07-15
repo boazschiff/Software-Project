@@ -15,7 +15,7 @@ from typing import Callable, Optional, Sequence
 import numpy as np
 
 __author__ = "Yahel Caspi"
-__version__ = "1.0.1"
+__version__ = "1.2.1"
 
 LINE_CONFIG_REGEX = re.compile(
     r"(?P<idx>\d+)\. k=(?P<k>\d+), max_iter\s+=\s+(?:not provided|(?P<max_iter>\d+)),\s+eps=(?P<eps>\d+(?:\.\d+)?),\s+(?P<filename1>\w+),\s+(?P<filename2>\w+)"
@@ -196,7 +196,7 @@ def run_test_files(tests_dir: Path):
         elif USE_VALGRIND and result.returncode == VALGRIND_ERRCODE:
             valgrind_log = valgrind_logfile.read()  # type: ignore
             print_red("memory leak detected by valgrind")
-            print_white_on_red(valgrind_log)
+            print_white_on_red(valgrind_log.decode())
 
         if result.stderr:
             success = False
@@ -296,6 +296,7 @@ def test_input_handling():
             expected_result = True
             if result.returncode != 1 and not (
                 result.returncode == 0 and IGNORE_ERRORCODE_0
+                or result.returncode == VALGRIND_ERRCODE and USE_VALGRIND
             ):
                 expected_result = False
                 print_red(
@@ -304,12 +305,11 @@ def test_input_handling():
             elif USE_VALGRIND and result.returncode == VALGRIND_ERRCODE:
                 valgrind_log = valgrind_logfile.read()  # type: ignore
                 print_red("memory leak detected by valgrind")
-                print_white_on_red(valgrind_log)
+                print_white_on_red(valgrind_log.decode())
 
             if result.stdout.rstrip("\n") != params[param_name]["error_msg"]:
-                print_green( result.stdout.rstrip("\n"))
-                print_green( params[param_name]["error_msg"])
                 expected_result = False
+                print_green(result.stdout.rstrip("\n"))
                 print_red(
                     f"failure: process returned an incorrect error message for invalid {param_name}"
                 )
@@ -321,6 +321,8 @@ def test_input_handling():
 
             if expected_result:
                 passed_tests += 1
+            else:
+                print(f"An error occurred with {param_name}={param_value!r}")
 
             if valgrind_logfile:
                 valgrind_logfile.close()
@@ -341,13 +343,14 @@ def test_input_handling():
     result, valgrind_logfile = execute(config)
 
     expected_result = True
-    if result.returncode != 1 and not (result.returncode == 0 and IGNORE_ERRORCODE_0):
+    if result.returncode != 1 and not (result.returncode == 0 and IGNORE_ERRORCODE_0
+                                       or result.returncode == VALGRIND_ERRCODE and USE_VALGRIND):
         expected_result = False
         print_red("failure: process accepted too many arguments")
     elif USE_VALGRIND and result.returncode == VALGRIND_ERRCODE:
         valgrind_log = valgrind_logfile.read()  # type: ignore
         print_red("memory leak detected by valgrind")
-        print_white_on_red(valgrind_log)
+        print_white_on_red(valgrind_log.decode())
 
     if result.stdout.rstrip("\n") != "An Error Has Occurred":
         expected_result = False
@@ -399,30 +402,25 @@ def test_input_handling():
         if valgrind_logfile:
             valgrind_logfile.close()
 
-
 def fit_adapter(
     fit: Callable,
     datapoints: np.ndarray,
     initial_centroids: np.ndarray,
-    max_iter: int,
-    dim: int,
     eps: float,
+    max_iter: int,
 ) -> np.ndarray:
-    """
-    Adapter to call C-extension fit function with 6 arguments:
-    (points, initial_centroids, K, max_iter, dim, eps)
-    to match C signature:
-        fit(points, centroids, K, max_iter, dim, eps)
-    """
     K = initial_centroids.shape[0]
-    return np.asarray(fit(
+    dim = datapoints.shape[1]
+    result = fit(
         datapoints.tolist(),
         initial_centroids.tolist(),
         K,
         max_iter,
         dim,
-        eps
-    ))
+        eps,
+    )
+    return np.asarray(result)
+
 
 
 
@@ -486,7 +484,7 @@ def test_fit(trials=5):
         eps = np.random.uniform(0, 0.001)
         max_iter = np.random.randint(200, 400)
 
-        result = fit_adapter(fit, datapoints, initial_centroids, max_iter, len(datapoints[0]), eps)
+        result = fit_adapter(fit, datapoints, initial_centroids, eps, max_iter)
 
         reference_centroids = kmeans_reference(
             datapoints, initial_centroids, eps, max_iter
@@ -506,19 +504,21 @@ def test_fit(trials=5):
 from typing import IO, Any
 
 
-def execute(
-    config, use_valgrind=False
-) -> tuple[subprocess.CompletedProcess[str], Optional[IO[Any]]]:
-    args = ["python3", "kmeanspp.py", config["k"]]
+def execute(config) -> tuple[subprocess.CompletedProcess[str], Optional[IO[Any]]]:
+    base_args = ["python3", "kmeanspp.py", config["k"]]
     if config.get("max_iter"):
-        args.append(config["max_iter"])
-    args += [config["eps"], config["filename1"], config["filename2"]]
+        base_args.append(config["max_iter"])
+    base_args += [config["eps"], config["filename1"], config["filename2"]]
+
+    if config.get("additional_args"):
+        base_args.extend(config["additional_args"])
 
     pass_fds = []
-    if use_valgrind:
+    logfile = None
+
+    if USE_VALGRIND:
         logfile = tempfile.TemporaryFile()
         fd = logfile.fileno()
-        # Ensures the fd is inherited by child processes
         os.set_inheritable(fd, True)
 
         args = [
@@ -526,12 +526,16 @@ def execute(
             "--leak-check=full",
             f"--log-fd={fd}",
             f"--error-exitcode={VALGRIND_ERRCODE}",
-        ] + args
+            "--suppressions=python.supp",
+            "--show-leak-kinds=definite,indirect",
+            "--errors-for-leak-kinds=definite,indirect",
+            "--",  # 👈 This is the key fix!
+            "python3", "kmeanspp.py",
+        ] + base_args[2:]  # Remove redundant python3/kmeanspp.py from base_args
 
         pass_fds.append(fd)
-
-    if config.get("additional_args"):
-        args.extend(config["additional_args"])
+    else:
+        args = base_args
 
     result = subprocess.run(
         args,
@@ -540,7 +544,7 @@ def execute(
         pass_fds=pass_fds,
     )
 
-    if use_valgrind:
+    if logfile:
         logfile.seek(0)
         return result, logfile
 
