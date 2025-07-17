@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <math.h>
 
-// ------------------ Helper Functions ------------------
 
 double euclidean(const double *p1, const double *p2, int dim) {
     int i;
@@ -100,7 +99,7 @@ void kmeans(double **points, double **centroids, int n_points, int K, int dim, i
 
 
 
-// ------------------ Python Binding ------------------
+
 
 static PyObject* fit(PyObject *self, PyObject *args) {
     PyObject *py_points, *py_centroids;
@@ -179,7 +178,7 @@ static PyMethodDef methods[] = {
 
 static struct PyModuleDef moduledef = {
     PyModuleDef_HEAD_INIT,
-    "mykmeanspp",  // Must match name in setup.py
+    "mykmeanspp",  
     NULL,
     -1,
     methods
